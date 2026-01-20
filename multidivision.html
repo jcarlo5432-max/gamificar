@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MasterMat: El Desafío Numérico Pro</title>
+    <style>
+        :root {
+            --primary: #4a90e2;
+            --secondary: #f39c12;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --bg: #f0f4f8;
+            --text: #2c3e50;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background: #eef2f7;
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .badge { font-weight: bold; color: var(--primary); }
+
+        .modes {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        /* Nuevo: Selector de dígitos */
+        .digit-selector {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px dashed #ccc;
+        }
+
+        .digit-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 5px;
+        }
+
+        .digit-btn {
+            background: #ddd;
+            color: #333;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .digit-btn.selected {
+            background: var(--secondary);
+            color: white;
+            border-color: #d35400;
+        }
+
+        .problem-area {
+            font-size: 2.5rem;
+            margin: 20px 0;
+            font-weight: bold;
+            letter-spacing: 2px;
+            min-height: 120px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        input[type="number"] {
+            font-size: 1.5rem;
+            width: 180px;
+            padding: 10px;
+            border: 3px solid var(--primary);
+            border-radius: 10px;
+            text-align: center;
+            outline: none;
+        }
+
+        .feedback {
+            height: 50px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+        }
+
+        button.active { background: var(--secondary); }
+
+        .division-grid {
+            display: inline-grid;
+            grid-template-columns: auto auto;
+            gap: 5px;
+            align-items: center;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .divisor { border-right: 3px solid black; padding-right: 15px; }
+        .dividendo { border-top: 3px solid black; padding-left: 15px; }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 MasterMat</h1>
+    
+    <div class="stats">
+        <div>Puntos: <span id="score" class="badge">0</span></div>
+        <div>Racha: <span id="streak" class="badge">0</span></div>
+    </div>
+
+    <div class="modes">
+        <button onclick="setMode('tablas')" id="btn-tablas">Tablas</button>
+        <button onclick="setMode('mult')" id="btn-mult">Multiplicación</button>
+        <button onclick="setMode('div')" id="btn-div">División</button>
+    </div>
+
+    <div id="difficulty-panel" class="digit-selector">
+        <span id="digit-label">Dígitos del multiplicador:</span>
+        <div class="digit-buttons" id="digit-container">
+            <div class="digit-btn selected" onclick="setDigits(1)">1</div>
+            <div class="digit-btn" onclick="setDigits(2)">2</div>
+            <div class="digit-btn" onclick="setDigits(3)">3</div>
+            <div id="btn-digit-4" class="digit-btn" onclick="setDigits(4)">4</div>
+        </div>
+    </div>
+
+    <div id="game-zone">
+        <div id="instruction">Resuelve la operación:</div>
+        <div class="problem-area" id="problem-display"></div>
+        
+        <div id="input-container">
+            <input type="number" id="user-input" placeholder="Respuesta">
+            <br><br>
+            <button onclick="checkAnswer()" style="background: var(--success); width: 100%; font-size: 1.2rem;">Comprobar</button>
+        </div>
+
+        <div class="feedback" id="feedback"></div>
+    </div>
+</div>
+
+<script>
+    let state = {
+        mode: 'tablas',
+        score: 0,
+        streak: 0,
+        currentAnswer: 0,
+        multDigits: 1, // Por defecto 1 dígito
+        divDigits: 1   // Por defecto 1 dígito
+    };
+
+    const problemEl = document.getElementById('problem-display');
+    const inputEl = document.getElementById('user-input');
+    const feedbackEl = document.getElementById('feedback');
+    const labelEl = document.getElementById('digit-label');
+
+    function setMode(mode) {
+        state.mode = mode;
+        document.querySelectorAll('.modes button').forEach(b => b.classList.remove('active'));
+        document.getElementById(`btn-${mode}`).classList.add('active');
+        
+        const panel = document.getElementById('difficulty-panel');
+        
+        if (mode === 'tablas') {
+            panel.classList.add('hidden');
+        } else {
+            panel.classList.remove('hidden');
+            labelEl.textContent = mode === 'mult' ? "Dígitos del multiplicador:" : "Dígitos del divisor:";
+            updateDigitUI();
+        }
+        nextProblem();
+    }
+
+    function setDigits(num) {
+        if (state.mode === 'mult') state.multDigits = num;
+        if (state.mode === 'div') state.divDigits = num;
+        updateDigitUI();
+        nextProblem();
+    }
+
+    function updateDigitUI() {
+        const current = state.mode === 'mult' ? state.multDigits : state.divDigits;
+        document.querySelectorAll('.digit-btn').forEach(btn => {
+            btn.classList.toggle('selected', parseInt(btn.textContent) === current);
+        });
+    }
+
+    function generateRandomByDigits(digits) {
+        const min = Math.pow(10, digits - 1);
+        const max = Math.pow(10, digits) - 1;
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function nextProblem() {
+        inputEl.value = '';
+        feedbackEl.textContent = '';
+        inputEl.focus();
+
+        let n1, n2;
+
+        if (state.mode === 'tablas') {
+            n1 = Math.floor(Math.random() * 9) + 2;
+            n2 = Math.floor(Math.random() * 9) + 2;
+            state.currentAnswer = n1 * n2;
+            problemEl.textContent = `${n1} × ${n2}`;
+        } 
+        else if (state.mode === 'mult') {
+            n1 = Math.floor(Math.random() * 9000) + 100; // Multiplicando siempre grande
+            n2 = generateRandomByDigits(state.multDigits);
+            state.currentAnswer = n1 * n2;
+            problemEl.innerHTML = `<div style="text-align:right">${n1}<br>x ${n2}<br><hr></div>`;
+        } 
+        else if (state.mode === 'div') {
+            n2 = generateRandomByDigits(state.divDigits);
+            let quotient = Math.floor(Math.random() * 90) + 2; // Cociente para que no sea infinito
+            n1 = n2 * quotient; 
+            state.currentAnswer = quotient;
+            
+            problemEl.innerHTML = `
+                <div class="division-grid">
+                    <div class="divisor">${n2}</div>
+                    <div class="dividendo">${n1}</div>
+                </div>
+            `;
+        }
+    }
+
+    function checkAnswer() {
+        const val = parseInt(inputEl.value);
+        if (isNaN(val)) return;
+
+        if (val === state.currentAnswer) {
+            state.score += 10 * (state.mode === 'tablas' ? 1 : (state.mode === 'mult' ? state.multDigits : state.divDigits));
+            state.streak++;
+            showFeedback("¡Correcto! Sigue así 🌟", "var(--success)");
+            updateStats();
+            setTimeout(nextProblem, 1500);
+        } else {
+            state.streak = 0;
+            updateStats();
+            handleError(val);
+        }
+    }
+
+    function handleError(userVal) {
+        let hint = "Inténtalo de nuevo.";
+        if (state.mode === 'div') {
+            let n2 = parseInt(document.querySelector('.divisor').textContent);
+            hint = `Pista: ¿Cuántas veces cabe ${n2} en la primera parte del número?`;
+        } else if (state.mode === 'mult') {
+            hint = "Revisa las llevadas de la multiplicación.";
+        }
+        showFeedback(`Incorrecto. ${hint}`, "var(--danger)");
+    }
+
+    function showFeedback(msg, color) {
+        feedbackEl.textContent = msg;
+        feedbackEl.style.color = color;
+    }
+
+    function updateStats() {
+        document.getElementById('score').textContent = state.score;
+        document.getElementById('streak').textContent = state.streak;
+    }
+
+    inputEl.addEventListener("keypress", (e) => { if (e.key === "Enter") checkAnswer(); });
+
+    // Iniciar
+    setMode('tablas');
+</script>
+
+</body>
+</html>
